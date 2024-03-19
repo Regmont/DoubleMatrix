@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 
 namespace DoubleMatrix
 {
@@ -7,48 +8,61 @@ namespace DoubleMatrix
         protected double[,] matrix;
         protected int width, length;
 
-        public Matrix(int width = 0, int length = 0)
+        public Matrix(int width, int length)
         {
-            if (width >= 0 && length >= 0)
-            {
-                this.width = width;
-                this.length = length;
-            }
-            else
-            {
-                width = length = 0;
-            }
-
+            this.width = width;
+            this.length = length;
             matrix = new double[width, length];
         }
 
-        public void FillRandom(int seed = 0)
+        public void FillMatrix()
         {
-            Random rnd = new Random(seed);
-
             for (int i = 0; i < width; i++)
             {
                 for (int j = 0; j < length; j++)
                 {
-                    matrix[i, j] = rnd.Next(-100000, 100000) + rnd.NextDouble();
-                }
-            }
-        }
-        public double[,] FillMatrix
-        {
-            set
-            {
-                width = value.GetLength(1);
-                length = value.GetLength(0);
+                    bool notOK = true;
+                    int top = 0;
+                    int left;
 
-                matrix = new double[width, length];
-
-                for (int i = 0; i < width; i++)
-                {
-                    for (int j = 0; j < length; j++)
+                    while (notOK)
                     {
-                        matrix[i, j] = value[i, j];
+                        Console.Write($"Введите matrix[{i}][{j}] (действительное число от -100000 до 100000): ");
+
+                        top = Console.CursorTop;
+                        left = Console.CursorLeft;
+
+                        string str = Console.ReadLine();
+
+                        if (!(double.TryParse(str, out matrix[i, j]) ||
+                            double.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out matrix[i, j])))
+                        {
+                            Console.Write("\r" + new string(' ', Console.BufferWidth) + "\r");
+                            Console.SetCursorPosition(0, top + 1);
+                            Console.WriteLine("Ошибка! Вы ввели не число, повторите ввод.");
+                            Console.SetCursorPosition(left, top);
+                            Console.Write("\r" + new string(' ', Console.BufferWidth) + "\r");
+                            Console.SetCursorPosition(0, top);
+                        }
+                        else if (Math.Abs(matrix[i, j]) > 100000)
+                        {
+                            Console.WriteLine("Ошибка! Число не входит в заданный диапазон! Повторите ввод.");
+                            Console.SetCursorPosition(left, top);
+                            Console.Write("\r" + new string(' ', Console.BufferWidth) + "\r");
+                            Console.SetCursorPosition(0, top);
+                        }
+                        else
+                        {
+                            notOK = false;
+                        }
                     }
+
+                    Console.SetCursorPosition(0, top + 1);
+                    Console.Write("\r" + new string(' ', Console.BufferWidth) + "\r");
+                    Console.SetCursorPosition(0, top + 1);
+
+                    string formattedNumber = matrix[i, j].ToString("0." + new string('#', 99));
+                    matrix[i, j] = double.Parse(formattedNumber);
                 }
             }
         }
@@ -60,7 +74,24 @@ namespace DoubleMatrix
 
                 for (int j = 0; j < length; j++)
                 {
-                    Console.Write(matrix[i, j].ToString("F3").PadLeft(11) + "   ");
+                    if (Math.Abs(matrix[i, j]) < 0.001 && matrix[i, j] != 0)
+                    {
+                        if (matrix[i, j] > 0)
+                        {
+                            Console.Write(" ");
+                        }
+                        Console.Write("  {0:0.000E+0}".PadLeft(11), matrix[i, j]);
+                    }
+                    else if (Math.Abs(matrix[i, j]) > 99999.999)
+                    {
+                        Console.Write(" {0:000.000E+0}".PadLeft(11), matrix[i, j]);
+                    }
+                    else
+                    {
+                        Console.Write(matrix[i, j].ToString("F3").PadLeft(11));
+                    }
+
+                    Console.Write("   ");
                 }
 
                 Console.WriteLine("|");
@@ -106,8 +137,13 @@ namespace DoubleMatrix
                 }
             }
         }
-        public void Inverse()
+        public bool Inverse()
         {
+            if (Determinant == 0)
+            {
+                return true;
+            }
+
             double x = 1 / Determinant;
 
             Transpose();
@@ -132,6 +168,7 @@ namespace DoubleMatrix
             matrix = algComplMatrix;
             Matrix temp = this * x;
             this.matrix = temp.matrix;
+            return false;
         }
 
         public double Determinant
@@ -159,6 +196,7 @@ namespace DoubleMatrix
                         {
                             if (flag)
                             {
+                                if ((temp[k, k]) == 0) { return 0; }
                                 x = temp[i, k] / temp[k, k];
                                 flag = false;
                             }
@@ -179,6 +217,7 @@ namespace DoubleMatrix
                         {
                             if (flag)
                             {
+                                if ((temp[k, k]) == 0) { return 0; }
                                 x = temp[i, k] / temp[k, k];
                                 flag = false;
                             }
@@ -219,20 +258,18 @@ namespace DoubleMatrix
             {
                 return null;
             }
-            else
+
+            Matrix sum = new Matrix(m1.width, m1.length);
+
+            for (int i = 0; i < m1.width; i++)
             {
-                Matrix sum = new Matrix(m1.width, m1.length);
-
-                for (int i = 0; i < m1.width; i++)
+                for (int j = 0; j < m1.length; j++)
                 {
-                    for (int j = 0; j < m1.length; j++)
-                    {
-                        sum.matrix[i, j] = m1.matrix[i, j] + m2.matrix[i, j];
-                    }
+                    sum.matrix[i, j] = m1.matrix[i, j] + m2.matrix[i, j];
                 }
-
-                return sum;
             }
+
+            return sum;
         }
         public static Matrix operator -(Matrix m1, Matrix m2)
         {
@@ -244,25 +281,23 @@ namespace DoubleMatrix
             {
                 return null;
             }
-            else
+
+            Matrix product = new Matrix(m1.width, m2.length);
+
+            for (int i = 0; i < product.width; i++)
             {
-                Matrix product = new Matrix(m1.width, m2.length);
-
-                for (int i = 0; i < product.width; i++)
+                for (int j = 0; j < product.length; j++)
                 {
-                    for (int j = 0; j < product.length; j++)
-                    {
-                        product.matrix[i, j] = 0;
+                    product.matrix[i, j] = 0;
 
-                        for (int k = 0; k < m1.length; k++)
-                        {
-                            product.matrix[i, j] += m1.matrix[i, k] * m2.matrix[k, j];
-                        }
+                    for (int k = 0; k < m1.length; k++)
+                    {
+                        product.matrix[i, j] += m1.matrix[i, k] * m2.matrix[k, j];
                     }
                 }
-
-                return product;
             }
+
+            return product;
         }
     }
 }
